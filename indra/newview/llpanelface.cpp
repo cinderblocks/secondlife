@@ -114,6 +114,28 @@ const S32 PBRTYPE_NORMAL = 2;       // PBR Normal
 const S32 PBRTYPE_METALLIC_ROUGHNESS = 3; // PBR Metallic
 const S32 PBRTYPE_EMISSIVE = 4;     // PBR Emissive
 
+LLGLTFMaterial::TextureInfo texture_info_from_pbrtype(S32 pbr_type)
+{
+    switch (pbr_type)
+    {
+    case PBRTYPE_BASE_COLOR:
+        return LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR;
+        break;
+    case PBRTYPE_NORMAL:
+        return LLGLTFMaterial::GLTF_TEXTURE_INFO_NORMAL;
+        break;
+    case PBRTYPE_METALLIC_ROUGHNESS:
+        return LLGLTFMaterial::GLTF_TEXTURE_INFO_METALLIC_ROUGHNESS;
+        break;
+    case PBRTYPE_EMISSIVE:
+        return LLGLTFMaterial::GLTF_TEXTURE_INFO_EMISSIVE;
+        break;
+    default:
+        return LLGLTFMaterial::GLTF_TEXTURE_INFO_COUNT;
+        break;
+    }
+}
+
 BOOST_STATIC_ASSERT(MATTYPE_DIFFUSE == LLRender::DIFFUSE_MAP && MATTYPE_NORMAL == LLRender::NORMAL_MAP && MATTYPE_SPECULAR == LLRender::SPECULAR_MAP);
 
 //
@@ -1721,7 +1743,43 @@ void LLPanelFace::updateUIGLTF(LLViewerObject* objectp, bool& has_pbr_material, 
     }
     getChildView("pbr_from_inventory")->setEnabled(editable);
     getChildView("edit_selected_pbr")->setEnabled(editable && has_pbr_material);
-    getChildView("save_selected_pbr")->setEnabled(objectp->permCopy() && has_pbr_material);
+
+    const bool show_pbr = mComboMatMedia->getCurrentIndex() == MATMEDIA_PBR && mComboMatMedia->getEnabled();
+    if (show_pbr)
+    {
+
+        const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+        const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+#if 0
+        if (texture_info != LLGLTFMaterial::GLTF_TEXTURE_INFO_COUNT)
+        {
+            struct LLSelectedTEGLTFMaterialFunctor : public LLSelectedTEFunctor
+            {
+                LLSelectedTEGLTFMaterialFunctor() : {}
+                virtual ~LLSelectedTEGLTFMaterialFunctor() {};
+                bool apply(LLViewerObject* object, S32 face) override
+                {
+                    LLGLTFMaterial* material = tep->getGLTFRenderMaterial();
+                    {
+                        new_override = *tep->getGLTFMaterialOverride();
+                    }
+                    // TODO: Don't assume baseColor
+                    new_override.mTextureTransform[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR].mScale.mV[VX] = mTextureScaleU;
+                    LLGLTFMaterialList::queueModify(object->getID(), face, &new_override);
+
+                    // Don't change the current material
+                    // TODO: Consider more elegant implementation that doesn't implicitly edit the non-GLTF material
+                    return current_material;
+                }
+
+                bool first = true;
+                float result;
+            } func();
+            LLSelectMgr::getInstance()->getSelection()->applyToTEs(&func);
+            // TODO: Get GLTF override values
+        }
+#endif
+    }
 }
 
 void LLPanelFace::updateVisibilityGLTF()
@@ -4541,11 +4599,31 @@ void LLPanelFace::onCommitPlanarAlign(LLUICtrl* ctrl, void* userdata)
 // static
 void LLPanelFace::onCommitGLTFTextureScaleU(LLUICtrl* ctrl, void* userdata)
 {
-#if 0
-	LLPanelFace* self = (LLPanelFace*)userdata;
     LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    // TODO
-#endif
+    const float textureScaleU = ctrl->getValue().asReal();
+    struct LLSelectedTEGLTFMaterialFunctor : public LLSelectedTEFunctor
+    {
+        LLSelectedTEGLTFMaterialFunctor(float texture_scale_u) : mTextureScaleU(texture_scale_u) {}
+        virtual ~LLSelectedTEGLTFMaterialFunctor() {};
+        bool apply(LLViewerObject* object, S32 face) override
+        {
+            LLGLTFMaterial new_override;
+            LLTextureEntry* tep = object->getTE(face);
+            if (tep->getGLTFMaterialOverride())
+            {
+                new_override = *tep->getGLTFMaterialOverride();
+            }
+            // TODO: Don't assume baseColor
+            new_override.mTextureTransform[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR].mScale.mV[VX] = mTextureScaleU;
+            LLGLTFMaterialList::queueModify(object->getID(), face, &new_override);
+
+            return current_material;
+        }
+
+        float mTextureScaleU;
+    } func(textureScaleU);
+    LLSelectMgr::getInstance()->getSelection()->applyToTEs(&func);
+    // TODO: Consider more elegant implementation that is reusable
 }
 
 // static
