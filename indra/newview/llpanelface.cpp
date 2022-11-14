@@ -1750,9 +1750,15 @@ void LLPanelFace::updateUIGLTF(LLViewerObject* objectp, bool& has_pbr_material, 
 
         const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
         const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
-#if 0
-        if (texture_info != LLGLTFMaterial::GLTF_TEXTURE_INFO_COUNT)
+        const bool show_texture_info = texture_info != LLGLTFMaterial::GLTF_TEXTURE_INFO_COUNT;
+        getChildView("gltfTextureScaleU")->setEnabled(show_texture_info);
+        getChildView("gltfTextureScaleV")->setEnabled(show_texture_info);
+        getChildView("gltfTextureRotation")->setEnabled(show_texture_info);
+        getChildView("gltfTextureTranslationU")->setEnabled(show_texture_info);
+        getChildView("gltfTextureTranslationV")->setEnabled(show_texture_info);
+        if (show_texture_info)
         {
+#if 0
             struct LLSelectedTEGLTFMaterialFunctor : public LLSelectedTEFunctor
             {
                 LLSelectedTEGLTFMaterialFunctor() : {}
@@ -1777,8 +1783,8 @@ void LLPanelFace::updateUIGLTF(LLViewerObject* objectp, bool& has_pbr_material, 
             } func();
             LLSelectMgr::getInstance()->getSelection()->applyToTEs(&func);
             // TODO: Get GLTF override values
-        }
 #endif
+        }
     }
 }
 
@@ -4608,16 +4614,17 @@ void LLPanelFace::onCommitGLTFTextureScaleU(LLUICtrl* ctrl, void* userdata)
         bool apply(LLViewerObject* object, S32 face) override
         {
             LLGLTFMaterial new_override;
-            LLTextureEntry* tep = object->getTE(face);
+            const LLTextureEntry* tep = object->getTE(face);
             if (tep->getGLTFMaterialOverride())
             {
                 new_override = *tep->getGLTFMaterialOverride();
             }
             // TODO: Don't assume baseColor
             new_override.mTextureTransform[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR].mScale.mV[VX] = mTextureScaleU;
+            LL_WARNS() << "LLGLTFMaterialList::queueModify(" << object->getID() << ", " << face << ", [new override : base color scale u = " << mTextureScaleU << "])" << LL_ENDL;
             LLGLTFMaterialList::queueModify(object->getID(), face, &new_override);
 
-            return current_material;
+            return true;
         }
 
         float mTextureScaleU;
