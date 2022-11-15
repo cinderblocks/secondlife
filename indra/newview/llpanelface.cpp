@@ -223,11 +223,11 @@ BOOL	LLPanelFace::postBuild()
     childSetCommitCallback("add_media", &LLPanelFace::onClickBtnAddMedia, this);
     childSetCommitCallback("delete_media", &LLPanelFace::onClickBtnDeleteMedia, this);
 
-    childSetCommitCallback("gltfTextureScaleU", &LLPanelFace::onCommitGLTFTextureScaleU, this);
-    childSetCommitCallback("gltfTextureScaleV", &LLPanelFace::onCommitGLTFTextureScaleV, this);
-    childSetCommitCallback("gltfRotation", &LLPanelFace::onCommitGLTFRotation, this);
-    childSetCommitCallback("gltfTextureTranslationU", &LLPanelFace::onCommitGLTFTextureTranslationU, this);
-    childSetCommitCallback("gltfTextureTranslationV", &LLPanelFace::onCommitGLTFTextureTranslationV, this);
+    childSetCommitCallback("gltfTextureScaleU", boost::bind(&LLPanelFace::onCommitGLTFTextureScaleU, this, _1), NULL);
+    childSetCommitCallback("gltfTextureScaleV", boost::bind(&LLPanelFace::onCommitGLTFTextureScaleV, this, _1), NULL);
+    childSetCommitCallback("gltfRotation", boost::bind(&LLPanelFace::onCommitGLTFRotation, this, _1), NULL);
+    childSetCommitCallback("gltfTextureTranslationU", boost::bind(&LLPanelFace::onCommitGLTFTextureTranslationU, this, _1), NULL);
+    childSetCommitCallback("gltfTextureTranslationV", boost::bind(&LLPanelFace::onCommitGLTFTextureTranslationV, this, _1), NULL);
 
 	childSetAction("button align",&LLPanelFace::onClickAutoFix,this);
 	childSetAction("button align textures", &LLPanelFace::onAlignTexture, this);
@@ -4602,14 +4602,11 @@ void LLPanelFace::onCommitPlanarAlign(LLUICtrl* ctrl, void* userdata)
 	self->sendTextureInfo();
 }
 
-// static
-void LLPanelFace::onCommitGLTFTextureScaleU(LLUICtrl* ctrl, void* userdata)
+void updateSelectedGLTFMaterials(std::function<void(LLGLTFMaterial*)> func)
 {
-    LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    const float textureScaleU = ctrl->getValue().asReal();
     struct LLSelectedTEGLTFMaterialFunctor : public LLSelectedTEFunctor
     {
-        LLSelectedTEGLTFMaterialFunctor(float texture_scale_u) : mTextureScaleU(texture_scale_u) {}
+        LLSelectedTEGLTFMaterialFunctor(std::function<void(LLGLTFMaterial*)> func) : mFunc(func) {}
         virtual ~LLSelectedTEGLTFMaterialFunctor() {};
         bool apply(LLViewerObject* object, S32 face) override
         {
@@ -4619,58 +4616,70 @@ void LLPanelFace::onCommitGLTFTextureScaleU(LLUICtrl* ctrl, void* userdata)
             {
                 new_override = *tep->getGLTFMaterialOverride();
             }
-            // TODO: Don't assume baseColor
-            new_override.mTextureTransform[LLGLTFMaterial::GLTF_TEXTURE_INFO_BASE_COLOR].mScale.mV[VX] = mTextureScaleU;
-            LL_WARNS() << "LLGLTFMaterialList::queueModify(" << object->getID() << ", " << face << ", [new override : base color scale u = " << mTextureScaleU << "])" << LL_ENDL;
+            mFunc(&new_override);
             LLGLTFMaterialList::queueModify(object->getID(), face, &new_override);
 
             return true;
         }
 
-        float mTextureScaleU;
-    } func(textureScaleU);
-    LLSelectMgr::getInstance()->getSelection()->applyToTEs(&func);
-    // TODO: Consider more elegant implementation that is reusable
+		std::function<void(LLGLTFMaterial*)> mFunc;
+    } select_func(func);
+    LLSelectMgr::getInstance()->getSelection()->applyToTEs(&select_func);
 }
 
-// static
-void LLPanelFace::onCommitGLTFTextureScaleV(LLUICtrl* ctrl, void* userdata)
+void LLPanelFace::onCommitGLTFTextureScaleU(LLUICtrl* ctrl)
 {
-#if 0
-	LLPanelFace* self = (LLPanelFace*)userdata;
-    LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    // TODO
-#endif
+    const float value = ctrl->getValue().asReal();
+    const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+    const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+    updateSelectedGLTFMaterials([&](LLGLTFMaterial* new_override)
+    {
+        new_override->mTextureTransform[texture_info].mScale.mV[VX] = value;
+    });
 }
 
-// static
-void LLPanelFace::onCommitGLTFRotation(LLUICtrl* ctrl, void* userdata)
+void LLPanelFace::onCommitGLTFTextureScaleV(LLUICtrl* ctrl)
 {
-#if 0
-	LLPanelFace* self = (LLPanelFace*)userdata;
-    LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    // TODO
-#endif
+    const float value = ctrl->getValue().asReal();
+    const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+    const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+    updateSelectedGLTFMaterials([&](LLGLTFMaterial* new_override)
+    {
+        new_override->mTextureTransform[texture_info].mScale.mV[VY] = value;
+    });
 }
 
-// static
-void LLPanelFace::onCommitGLTFTextureTranslationU(LLUICtrl* ctrl, void* userdata)
+void LLPanelFace::onCommitGLTFRotation(LLUICtrl* ctrl)
 {
-#if 0
-	LLPanelFace* self = (LLPanelFace*)userdata;
-    LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    // TODO
-#endif
+    const float value = ctrl->getValue().asReal();
+    const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+    const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+    updateSelectedGLTFMaterials([&](LLGLTFMaterial* new_override)
+    {
+        new_override->mTextureTransform[texture_info].mRotation = value;
+    });
 }
 
-// static
-void LLPanelFace::onCommitGLTFTextureTranslationV(LLUICtrl* ctrl, void* userdata)
+void LLPanelFace::onCommitGLTFTextureTranslationU(LLUICtrl* ctrl)
 {
-#if 0
-	LLPanelFace* self = (LLPanelFace*)userdata;
-    LL_WARNS() << ctrl->getValue().asReal() << LL_ENDL; // TODO: Remove
-    // TODO
-#endif
+    const float value = ctrl->getValue().asReal();
+    const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+    const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+    updateSelectedGLTFMaterials([&](LLGLTFMaterial* new_override)
+    {
+        new_override->mTextureTransform[texture_info].mTranslation.mV[VX] = value;
+    });
+}
+
+void LLPanelFace::onCommitGLTFTextureTranslationV(LLUICtrl* ctrl)
+{
+    const float value = ctrl->getValue().asReal();
+    const U32 pbr_type = findChild<LLRadioGroup>("radio_pbr_type")->getSelectedIndex();
+    const LLGLTFMaterial::TextureInfo texture_info = texture_info_from_pbrtype(pbr_type);
+    updateSelectedGLTFMaterials([&](LLGLTFMaterial* new_override)
+    {
+        new_override->mTextureTransform[texture_info].mTranslation.mV[VY] = value;
+    });
 }
 
 void LLPanelFace::onTextureSelectionChanged(LLInventoryItem* itemp)
