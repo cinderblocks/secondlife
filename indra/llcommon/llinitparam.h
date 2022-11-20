@@ -241,7 +241,7 @@ namespace LLInitParam
 	// empty default implementation of key cache
 	// leverages empty base class optimization
 	template <typename T>
-	class TypeValues
+	struct TypeValues
 	:	public ParamValue<typename LLTypeTags::Sorted<T>::value_t>
 	{
 	private:
