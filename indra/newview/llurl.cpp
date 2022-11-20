@@ -270,7 +270,7 @@ const char* LLURL::updateRelativePath(const LLURL &url)
 	return mPath;
 }
 
-const char * LLURL::getFullPath()
+const char * LLURL::getFullPath() const
 {
 	strncpy(LLURL::sReturnString,mPath, LL_MAX_PATH -1);		/* Flawfinder: ignore */
 	LLURL::sReturnString[LL_MAX_PATH -1] = '\0';
@@ -280,7 +280,7 @@ const char * LLURL::getFullPath()
 	return(sReturnString);
 }
 
-const char * LLURL::getAuthority()
+const char * LLURL::getAuthority() const
 {
 	strncpy(LLURL::sReturnString,mAuthority, LL_MAX_PATH -1);               /* Flawfinder: ignore */
 	LLURL::sReturnString[LL_MAX_PATH -1] = '\0';

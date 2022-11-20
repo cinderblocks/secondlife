@@ -65,19 +65,19 @@ public:
 
 	virtual ~LLURL();
 
-	virtual void init (const char * url);
-	virtual void cleanup ();
+	void init (const char * url);
+	void cleanup ();
 
 	bool operator==(const LLURL &rhs) const;
 	bool operator!=(const LLURL &rhs) const;
 
-	virtual const char *getFQURL() const;
-	virtual const char *getFullPath();
-	virtual const char *getAuthority();
+	const char *getFQURL() const;
+	const char *getFullPath() const;
+	const char *getAuthority() const;
 
-	virtual const char *updateRelativePath(const LLURL &url);
+    const char *updateRelativePath(const LLURL &url);
 
-	virtual BOOL  isExtension(const char *compare) {return (!strcmp(mExtension,compare));};
+    BOOL  isExtension(const char *compare) const {return (!strcmp(mExtension,compare));};
 
 public:	
 	
