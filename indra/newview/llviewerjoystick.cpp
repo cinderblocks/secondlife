@@ -152,7 +152,7 @@ BOOL CALLBACK di8_devices_callback(LPCDIDEVICEINSTANCE device_instance_ptr, LPVO
         if (guid.isBinary())
         {
             std::vector<U8> bin_bucket = guid.asBinary();
-            init_device = memcmp(&bin_bucket[0], &device_instance_ptr->guidInstance, sizeof(GUID)) == 0;
+            init_device = memcmp(bin_bucket.data(), &device_instance_ptr->guidInstance, sizeof(GUID)) == 0;
         }
         else
         {
@@ -164,8 +164,8 @@ BOOL CALLBACK di8_devices_callback(LPCDIDEVICEINSTANCE device_instance_ptr, LPVO
         if (init_device)
         {
             LL_DEBUGS("Joystick") << "Found and attempting to use device: " << product_name << LL_ENDL;
-            LPDIRECTINPUT8       di8_interface = *((LPDIRECTINPUT8 *)gViewerWindow->getWindow()->getDirectInput8());
-            LPDIRECTINPUTDEVICE8 device = NULL;
+            LPDIRECTINPUT8       di8_interface = *static_cast<LPDIRECTINPUT8 *>(gViewerWindow->getWindow()->getDirectInput8());
+            LPDIRECTINPUTDEVICE8 device        = NULL;
 
             HRESULT status = di8_interface->CreateDevice(
                 device_instance_ptr->guidInstance, // REFGUID rguid,
@@ -194,8 +194,8 @@ BOOL CALLBACK di8_devices_callback(LPCDIDEVICEINSTANCE device_instance_ptr, LPVO
                 S32 size = sizeof(GUID);
                 LLSD::Binary data; //just an std::vector
                 data.resize(size);
-                memcpy(&data[0], &device_instance_ptr->guidInstance /*POD _GUID*/, size);
-                LLViewerJoystick::getInstance()->initDevice(&device, product_name, LLSD(data));
+                memcpy(data.data(), &device_instance_ptr->guidInstance /*POD _GUID*/, size);
+                LLViewerJoystick::getInstance()->initDevice(&device, product_name.c_str(), LLSD(data));
                 return DIENUM_STOP;
             }
         }
@@ -208,7 +208,7 @@ BOOL CALLBACK di8_devices_callback(LPCDIDEVICEINSTANCE device_instance_ptr, LPVO
 }
 
 // Windows guids
-// This is GUID2 so teoretically it can be memcpy copied into LLUUID
+// This is GUID2 so theoretically it can be memcpy copied into LLUUID
 void guid_from_string(GUID &guid, const std::string &input)
 {
     CLSIDFromString(utf8str_to_utf16str(input).c_str(), &guid);
@@ -469,12 +469,12 @@ void LLViewerJoystick::initDevice(LLSD &guid)
 #endif
 }
 
-void LLViewerJoystick::initDevice(void * preffered_device /*LPDIRECTINPUTDEVICE8*/, std::string &name, LLSD &guid)
+void LLViewerJoystick::initDevice(void * preffered_device /*LPDIRECTINPUTDEVICE8*/, const char* name, const LLSD &guid)
 {
 #if LIB_NDOF
     mLastDeviceUUID = guid;
 
-    strncpy(mNdofDev->product, name.c_str(), sizeof(mNdofDev->product));
+    strncpy(mNdofDev->product, name, sizeof(mNdofDev->product));
     mNdofDev->manufacturer[0] = '\0';
 
     initDevice(preffered_device);
