@@ -28,6 +28,7 @@
 #define LL_LLNAMETABLE_H
 
 #include <map>
+#include <string>
 
 #include "string_table.h"
 
